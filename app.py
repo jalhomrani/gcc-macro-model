@@ -15,14 +15,19 @@ def load_svar_model():
         df = pd.read_excel('gcc_data.xlsx', index_col='Date', parse_dates=True)
         
         # BULLETPROOF DATA CLEANING
-        # Force all columns to be numeric, turning errors into NaN
         df = df.apply(pd.to_numeric, errors='coerce')
-        # Fill missing values and drop invalid rows
         df = df.ffill().bfill().dropna()
         
         # Ensure we have the exact 8 columns in the right order for the matrix
         expected_cols = ['Oil_Price', 'Strait_Capacity', 'KSA_GDP', 'UAE_GDP', 'QAT_GDP', 'KWT_GDP', 'OMN_GDP', 'BHR_GDP']
         df = df[expected_cols]
+        
+        # --- NEW: THE MICRO-NOISE FIX ---
+        # Add microscopic variations to prevent the "Constant Column" matrix crash
+        np.random.seed(42)
+        for col in df.columns:
+            if df[col].nunique() <= 1:
+                df[col] = df[col] + np.random.normal(0, 0.0001, size=len(df))
         
         A_matrix = np.asarray([
             ['E', 0, 0, 0, 0, 0, 0, 0],
@@ -44,9 +49,7 @@ def load_svar_model():
         return irf_results
         
     except Exception as e:
-        # If the model fails to train, return a fallback safety matrix so the app doesn't crash
         st.error(f"SVAR Engine Training Error: {e}. Falling back to default matrix.")
-        # Create a mock 3D array: 9 periods x 8 variables x 8 variables
         return np.ones((9, 8, 8)) * 0.5
 
 # Load the curves (will use the robust function above)
