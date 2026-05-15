@@ -10,28 +10,47 @@ st.set_page_config(page_title="GCC Macro Model", layout="wide")
 # --- 2. THE SVAR ENGINE (Cached for speed) ---
 @st.cache_data
 def load_svar_model():
-    # Read the historical data directly from your Excel file
-    df = pd.read_excel('gcc_data.xlsx', index_col='Date', parse_dates=True)
-    
-    # --- THE BULLETPROOF DATA CLEANER ---
-    # 1. Fill any missing blank cells with the previous quarter's number
-    df = df.ffill().bfill() 
-    # 2. Drop any completely empty rows that Excel might have hidden at the bottom
-    df = df.dropna()        
-    
-    A_matrix = np.asarray([
-        ['E', 0, 0, 0, 0, 0, 0, 0],
-        ['E', 'E', 0, 0, 0, 0, 0, 0],
-        ['E', 'E', 'E', 0, 0, 0, 0, 0],
-        ['E', 'E', 0, 'E', 0, 0, 0, 0],
-        ['E', 'E', 0, 0, 'E', 0, 0, 0],
-        ['E', 'E', 0, 0, 0, 'E', 0, 0],
-        ['E', 'E', 0, 0, 0, 0, 'E', 0],
-        ['E', 'E', 0, 0, 0, 0, 0, 'E']
-    ])
-    model = SVAR(df, svar_type='A', A=A_matrix)
-    results = model.fit(maxlags=1)
-    return results.irf(periods=8).irfs
+    try:
+        # Read the historical data
+        df = pd.read_excel('gcc_data.xlsx', index_col='Date', parse_dates=True)
+        
+        # BULLETPROOF DATA CLEANING
+        # Force all columns to be numeric, turning errors into NaN
+        df = df.apply(pd.to_numeric, errors='coerce')
+        # Fill missing values and drop invalid rows
+        df = df.ffill().bfill().dropna()
+        
+        # Ensure we have the exact 8 columns in the right order for the matrix
+        expected_cols = ['Oil_Price', 'Strait_Capacity', 'KSA_GDP', 'UAE_GDP', 'QAT_GDP', 'KWT_GDP', 'OMN_GDP', 'BHR_GDP']
+        df = df[expected_cols]
+        
+        A_matrix = np.asarray([
+            ['E', 0, 0, 0, 0, 0, 0, 0],
+            ['E', 'E', 0, 0, 0, 0, 0, 0],
+            ['E', 'E', 'E', 0, 0, 0, 0, 0],
+            ['E', 'E', 0, 'E', 0, 0, 0, 0],
+            ['E', 'E', 0, 0, 'E', 0, 0, 0],
+            ['E', 'E', 0, 0, 0, 'E', 0, 0],
+            ['E', 'E', 0, 0, 0, 0, 'E', 0],
+            ['E', 'E', 0, 0, 0, 0, 0, 'E']
+        ])
+        
+        # Fit the SVAR model
+        model = SVAR(df, svar_type='A', A=A_matrix)
+        results = model.fit(maxlags=1)
+        
+        # Extract the Impulse Response Functions (8 periods)
+        irf_results = results.irf(periods=8).irfs
+        return irf_results
+        
+    except Exception as e:
+        # If the model fails to train, return a fallback safety matrix so the app doesn't crash
+        st.error(f"SVAR Engine Training Error: {e}. Falling back to default matrix.")
+        # Create a mock 3D array: 9 periods x 8 variables x 8 variables
+        return np.ones((9, 8, 8)) * 0.5
+
+# Load the curves (will use the robust function above)
+svar_curves = load_svar_model()
 
 # --- 3. UI SIDEBAR CONTROLS ---
 st.sidebar.header("Geopolitical Parameters")
