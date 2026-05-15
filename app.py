@@ -42,7 +42,7 @@ def load_svar_model():
         
         # Fit the SVAR model
         model = SVAR(df, svar_type='A', A=A_matrix)
-        results = model.fit(maxlags=1)
+        results = model.fit(maxlags=2)
         
         # Extract the Impulse Response Functions (8 periods)
         irf_results = results.irf(periods=8).irfs
