@@ -13,6 +13,12 @@ def load_svar_model():
     # Read the historical data directly from your Excel file
     df = pd.read_excel('gcc_data.xlsx', index_col='Date', parse_dates=True)
     
+    # --- THE BULLETPROOF DATA CLEANER ---
+    # 1. Fill any missing blank cells with the previous quarter's number
+    df = df.ffill().bfill() 
+    # 2. Drop any completely empty rows that Excel might have hidden at the bottom
+    df = df.dropna()        
+    
     A_matrix = np.asarray([
         ['E', 0, 0, 0, 0, 0, 0, 0],
         ['E', 'E', 0, 0, 0, 0, 0, 0],
@@ -26,8 +32,6 @@ def load_svar_model():
     model = SVAR(df, svar_type='A', A=A_matrix)
     results = model.fit(maxlags=1)
     return results.irf(periods=8).irfs
-
-svar_curves = load_svar_model()
 
 # --- 3. UI SIDEBAR CONTROLS ---
 st.sidebar.header("Geopolitical Parameters")
