@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 from statsmodels.tsa.vector_ar.svar_model import SVAR
 import plotly.graph_objects as go
-import io
 
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(page_title="GCC Macro Model", layout="wide")
@@ -11,29 +10,9 @@ st.set_page_config(page_title="GCC Macro Model", layout="wide")
 # --- 2. THE SVAR ENGINE (Cached for speed) ---
 @st.cache_data
 def load_svar_model():
-    csv_data = """Date,Oil_Price,Strait_Capacity,KSA_GDP,UAE_GDP,QAT_GDP,KWT_GDP,OMN_GDP,BHR_GDP
-    2019-03-31,63.1,100,1.7,2.0,1.5,1.2,2.1,1.8
-    2019-06-30,68.9,95,0.5,1.1,0.2,0.0,2.3,1.0
-    2019-09-30,62.0,90,-0.4,0.0,-1.5,-1.8,2.0,-0.5
-    2019-12-31,63.2,100,0.3,1.5,1.0,0.8,2.5,1.2
-    2020-03-31,50.4,100,-1.0,-0.5,-0.2,-0.5,1.0,-0.8
-    2020-06-30,29.3,100,-7.0,-6.1,-3.5,-5.5,-3.0,-4.5
-    2020-09-30,42.9,100,-4.6,-4.0,-2.0,-4.2,-1.5,-3.0
-    2020-12-31,44.2,100,-3.9,-3.0,-1.1,-3.5,-1.0,-2.5
-    2021-03-31,61.1,95,-0.1,0.5,-0.5,-1.0,1.5,0.0
-    2021-06-30,68.9,95,1.8,2.2,1.0,1.5,2.8,1.2
-    2021-09-30,73.4,90,7.0,5.5,2.1,3.0,4.5,2.5
-    2021-12-31,79.7,90,6.7,5.0,2.5,3.5,4.2,2.8
-    2022-03-31,97.9,100,9.9,7.5,4.8,6.0,5.5,4.0
-    2022-06-30,113.9,100,12.2,8.8,6.1,7.5,6.0,5.5
-    2022-09-30,97.7,100,8.8,6.5,5.0,6.2,5.2,4.5
-    2022-12-31,88.5,100,5.5,4.2,3.8,4.5,4.0,3.5
-    2023-03-31,81.2,95,3.8,3.5,2.0,2.5,3.5,2.0
-    2023-06-30,78.0,95,1.2,2.0,0.5,1.0,3.0,1.2
-    2023-09-30,86.7,90,-4.4,-2.5,-6.0,-5.5,1.5,-4.0
-    2023-12-31,82.7,85,-3.7,-2.0,-7.5,-6.5,1.0,-5.5
-    """
-    df = pd.read_csv(io.StringIO(csv_data), index_col='Date', parse_dates=True)
+    # Read the historical data directly from your Excel file
+    df = pd.read_excel('gcc_data.xlsx', index_col='Date', parse_dates=True)
+    
     A_matrix = np.asarray([
         ['E', 0, 0, 0, 0, 0, 0, 0],
         ['E', 'E', 0, 0, 0, 0, 0, 0],
