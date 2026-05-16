@@ -222,8 +222,6 @@ with tab4:
     sectors = ['Energy & Petrochem', 'Tourism & Aviation', 'Defense & Cyber', 'Real Estate', 'Logistics']
     baselines_sec = [3.0, 6.0, 4.0, 4.5, 3.5]
     
-    # Calculate dynamic impacts based on the sidebar sliders
-    # Strait penalty hurts consumer/trade, helps defense
     strait_penalty = 100 - strait_capacity
     
     # Mathematical logic for sectoral divergence
@@ -245,6 +243,7 @@ with tab4:
     # Build the Bar Chart
     fig_sec = go.Figure()
     
+    # Add the Baseline Trace (Gray)
     fig_sec.add_trace(go.Bar(
         x=sector_df['Sector'],
         y=sector_df['Baseline Growth (%)'],
@@ -252,14 +251,24 @@ with tab4:
         marker_color='lightgray'
     ))
     
-    # Dynamically color the projected bars (Green for growth, Red for contraction)
-    proj_colors = ['red' if val < 0 else 'royalblue' for val in sector_df['Projected Growth (%)']]
-    
+    # Separate the positive and negative projections to explicitly label them
+    positive_mask = sector_df['Projected Growth (%)'] >= 0
+    negative_mask = sector_df['Projected Growth (%)'] < 0
+
+    # Add the Positive Projection Trace (Blue)
     fig_sec.add_trace(go.Bar(
-        x=sector_df['Sector'],
-        y=sector_df['Projected Growth (%)'],
-        name='Conflict Projection',
-        marker_color=proj_colors
+        x=sector_df['Sector'][positive_mask],
+        y=sector_df['Projected Growth (%)'][positive_mask],
+        name='Projected Growth',
+        marker_color='royalblue'
+    ))
+
+    # Add the Negative Projection Trace (Red)
+    fig_sec.add_trace(go.Bar(
+        x=sector_df['Sector'][negative_mask],
+        y=sector_df['Projected Growth (%)'][negative_mask],
+        name='Projected Contraction',
+        marker_color='crimson'
     ))
     
     fig_sec.add_hline(y=0, line_dash="solid", line_color="black", line_width=2)
