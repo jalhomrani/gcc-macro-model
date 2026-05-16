@@ -121,9 +121,6 @@ with tab1:
 # ==========================================
 # TAB 2: INFLATION SIMULATION
 # ==========================================
-# ==========================================
-# TAB 2: INFLATION SIMULATION
-# ==========================================
 with tab2:
     st.subheader("Projected Consumer Price Index (CPI) Inflation (%)")
     
@@ -136,7 +133,7 @@ with tab2:
     inf_data = pd.DataFrame({"Quarter": quarters})
     
     # 3. The Shock: A blocked strait massively increases freight and insurance costs
-    strait_penalty = (100 - strait_capacity) * 0.05  # Scaled down to prevent chart blow-out
+    strait_penalty = (100 - strait_capacity) * 0.05  
     
     for country in indices.keys():
         inf_curve = np.full(8, baselines_inf[country])
@@ -155,14 +152,21 @@ with tab2:
     fig_inf = go.Figure()
     for country in indices.keys():
         if locals()[f"show_{country.lower()}"]:
-            line_dash = 'dash' if country in ['QAT', 'KWT', 'BHR'] else 'solid'
-            fig_inf.add_trace(go.Scatter(x=inf_data["Quarter"], y=inf_data[country], mode='lines+markers', name=country, line=dict(color=colors[country], width=3, dash=line_dash)))
+            # Changed from Scatter (Line) to Bar (Column)
+            fig_inf.add_trace(go.Bar(
+                x=inf_data["Quarter"], 
+                y=inf_data[country], 
+                name=country, 
+                marker_color=colors[country]
+            ))
 
     fig_inf.add_hline(y=2.0, line_dash="dot", line_color="green", line_width=2, annotation_text="Target Rate (2%)")
+    
     if conflict_duration > 0:
         fig_inf.add_vrect(x0=-0.5, x1=conflict_duration - 0.5, fillcolor="red", opacity=0.1, layer="below", line_width=0, annotation_text="Active Conflict Phase", annotation_position="top left")
     
-    fig_inf.update_layout(height=500, hovermode="x unified", yaxis_title="Inflation Rate (%)")
+    # Added barmode='group' to prevent bars from stacking on top of each other
+    fig_inf.update_layout(barmode='group', height=500, hovermode="x unified", yaxis_title="Inflation Rate (%)")
     st.plotly_chart(fig_inf, use_container_width=True)
     
 # ==========================================
