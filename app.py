@@ -121,21 +121,35 @@ with tab1:
 # ==========================================
 # TAB 2: INFLATION SIMULATION
 # ==========================================
+# ==========================================
+# TAB 2: INFLATION SIMULATION
+# ==========================================
 with tab2:
     st.subheader("Projected Consumer Price Index (CPI) Inflation (%)")
-    base_inflation = 2.0
-    inf_vuln = {'KSA': 0.8, 'UAE': 0.8, 'QAT': 2.5, 'KWT': 2.2, 'OMN': 0.2, 'BHR': 2.0}
+    
+    # 1. Establish realistic pre-war inflation baselines for early 2026
+    baselines_inf = {'KSA': 1.8, 'UAE': 2.5, 'QAT': 3.2, 'KWT': 3.0, 'OMN': 1.2, 'BHR': 2.1}
+    
+    # 2. Vulnerability Index (How much of their food/goods are imported via Hormuz?)
+    inf_vuln = {'KSA': 0.4, 'UAE': 0.6, 'QAT': 1.5, 'KWT': 1.2, 'OMN': 0.1, 'BHR': 1.1}
+    
     inf_data = pd.DataFrame({"Quarter": quarters})
-    strait_penalty = (100 - strait_capacity) * 0.15 
+    
+    # 3. The Shock: A blocked strait massively increases freight and insurance costs
+    strait_penalty = (100 - strait_capacity) * 0.05  # Scaled down to prevent chart blow-out
     
     for country in indices.keys():
-        inf_curve = np.full(8, base_inflation)
+        inf_curve = np.full(8, baselines_inf[country])
         country_shock = strait_penalty * inf_vuln[country]
+        
         for q in range(8):
             if q < conflict_duration:
-                inf_curve[q] = base_inflation + country_shock + (q * 0.5)
+                # Inflation spikes immediately, and compounds slightly as stockpiles deplete
+                inf_curve[q] = baselines_inf[country] + country_shock + (q * 0.3)
             else:
-                inf_curve[q] = inf_curve[q-1] - ((inf_curve[q-1] - base_inflation) * 0.3)
+                # Inflation cools down rapidly once supply chains reopen (V-shaped recovery)
+                inf_curve[q] = inf_curve[q-1] - ((inf_curve[q-1] - baselines_inf[country]) * 0.5)
+                
         inf_data[country] = inf_curve
 
     fig_inf = go.Figure()
@@ -144,13 +158,13 @@ with tab2:
             line_dash = 'dash' if country in ['QAT', 'KWT', 'BHR'] else 'solid'
             fig_inf.add_trace(go.Scatter(x=inf_data["Quarter"], y=inf_data[country], mode='lines+markers', name=country, line=dict(color=colors[country], width=3, dash=line_dash)))
 
-    fig_inf.add_hline(y=2.0, line_dash="dot", line_color="green", line_width=2, annotation_text="Target Rate")
+    fig_inf.add_hline(y=2.0, line_dash="dot", line_color="green", line_width=2, annotation_text="Target Rate (2%)")
     if conflict_duration > 0:
         fig_inf.add_vrect(x0=-0.5, x1=conflict_duration - 0.5, fillcolor="red", opacity=0.1, layer="below", line_width=0, annotation_text="Active Conflict Phase", annotation_position="top left")
     
-    fig_inf.update_layout(height=500, hovermode="x unified", yaxis_title="Inflation (%)")
+    fig_inf.update_layout(height=500, hovermode="x unified", yaxis_title="Inflation Rate (%)")
     st.plotly_chart(fig_inf, use_container_width=True)
-
+    
 # ==========================================
 # TAB 3: LABOR MARKET SIMULATION
 # ==========================================
