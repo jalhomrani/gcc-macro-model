@@ -8,23 +8,87 @@ st.set_page_config(page_title="GCC Macro Simulator", layout="wide")
 
 # --- UI SIDEBAR CONTROLS ---
 st.sidebar.header("Scenario Parameters")
-oil_price = st.sidebar.slider("Global Oil Price ($/bbl)", 20, 150, 72)
-strait_capacity = st.sidebar.slider("Strait Capacity (%)", 0, 100, 85)
+oil_price = st.sidebar.slider("Global Oil Price ($/bbl)", 20, 150, 110)
+strait_capacity = st.sidebar.slider("Strait Capacity (%)", 0, 100, 3)
 conflict_duration = st.sidebar.slider("Conflict Duration (Months)", 0, 24, 6)
 
-# Disruption Scale (D): 0 = normal, 1 = total closure
+# Disruption Scale (D): 0 = no disruption, 1 = full closure
 D = 1.0 - (strait_capacity / 100.0)
 
 st.title("GCC Macroeconomic & Labour Market Simulator")
 st.markdown("Based on Technical Appendix A: Two-Stage Sectoral and AR(1) Recovery Framework")
 
 # --- CREATE TABS ---
-tab1, tab2, tab3 = st.tabs(["🏢 Sectoral Output (Two-Stage)", "💼 Labour Displacement", "📉 GDP Bypass & Recovery"])
+tab1, tab2, tab3 = st.tabs(["📉 GDP Deviation & Bypass", "🏢 Sectoral Output (Two-Stage)", "💼 Labour Displacement"])
 
 # ==========================================
-# TAB 1: SECTORAL OUTPUT (TWO-STAGE)
+# TAB 1: GDP DEVIATION & BYPASS
 # ==========================================
 with tab1:
+    st.subheader("Projected GDP Deviation & Bypass Capacity")
+    
+    # 1. Bypass Coefficients (β_bypass) from Component 1
+    bypass_coef = {'SAU': 0.35, 'UAE': 0.25, 'OMN': 1.00, 'QAT': 0.03, 'KWT': 0.03, 'BHR': 0.03}
+    
+    # 2. Hardcoded Delta GDP estimates from Table A.6 (Assuming $110/bbl and Strait at input capacity)
+    # Note: A fully dynamic delta GDP requires the fiscal multipliers (α) and baseline volumes, 
+    # which aren't fully provided for dynamic calculation, so we interpolate based on Table A.6 limits.
+    
+    countries = list(bypass_coef.keys())
+    
+    # Interpolating Delta GDP based on Strait Capacity (using Table A.6 bounds)
+    delta_gdp = []
+    for c in countries:
+        if strait_capacity <= 3:
+            # Values at 3% capacity
+            vals = {'SAU': -2.3, 'UAE': -1.3, 'QAT': -5.4, 'KWT': -6.3, 'BHR': -2.1, 'OMN': 2.9}
+        elif strait_capacity <= 25:
+             # Values at 25% capacity
+            vals = {'SAU': -0.8, 'UAE': -0.6, 'QAT': -3.3, 'KWT': -3.8, 'BHR': -1.3, 'OMN': 2.9}
+        else:
+             # Values at 50% capacity (and above)
+            vals = {'SAU': 0.9, 'UAE': 0.1, 'QAT': -0.8, 'KWT': -0.9, 'BHR': -0.3, 'OMN': 2.9}
+        delta_gdp.append(vals[c])
+
+    # Calculate effective capacity based on bypass capability for visual reference
+    effective_capacity = [strait_capacity + ((100 - strait_capacity) * bypass_coef[c]) for c in countries]
+    
+    fig_gdp = go.Figure()
+    
+    # Bar for Effective Capacity
+    fig_gdp.add_trace(go.Bar(
+        x=countries,
+        y=effective_capacity,
+        name='Effective Export Capacity (%)',
+        marker_color='lightgray',
+        yaxis='y1'
+    ))
+    
+    # Line for GDP Deviation
+    fig_gdp.add_trace(go.Scatter(
+        x=countries,
+        y=delta_gdp,
+        name='ΔGDP (Percentage Points)',
+        mode='lines+markers',
+        marker=dict(size=10, color='crimson'),
+        line=dict(width=3),
+        yaxis='y2'
+    ))
+
+    # Layout for dual axis
+    fig_gdp.update_layout(
+        title="Impact of Pipeline Bypass on GDP",
+        yaxis=dict(title="Effective Capacity (%)", range=[0, 100]),
+        yaxis2=dict(title="ΔGDP (Percentage Points)", overlaying='y', side='right'),
+        barmode='group',
+        height=500
+    )
+    st.plotly_chart(fig_gdp, use_container_width=True)
+
+# ==========================================
+# TAB 2: SECTORAL OUTPUT (TWO-STAGE)
+# ==========================================
+with tab2:
     st.subheader("Sector Output Projections (100 = Pre-Conflict Baseline)")
     
     # Coefficients from Table A.3
@@ -66,9 +130,9 @@ with tab1:
     st.plotly_chart(fig_sec, use_container_width=True)
 
 # ==========================================
-# TAB 2: LABOUR DISPLACEMENT
+# TAB 3: LABOUR DISPLACEMENT
 # ==========================================
-with tab2:
+with tab3:
     st.subheader("Cumulative Non-National Workforce Departures")
     
     L0 = 27970273  # GCC Base non-national workforce
@@ -99,25 +163,7 @@ with tab2:
     if conflict_duration > 0:
         fig_labour.add_vrect(x0=0, x1=conflict_duration, fillcolor="red", opacity=0.1, layer="below", line_width=0)
         
-    fig_labour.update_layout(height=500, hovermode="x unified", xaxis_title="Months", yaxis_title="Total Expat Departures")
+    fig_labour.update_layout(height=500, hovermode="x unified", xaxis_title="Months from Conflict Onset", yaxis_title="Total Expat Departures")
     st.plotly_chart(fig_labour, use_container_width=True)
-
-# ==========================================
-# TAB 3: GDP BYPASS & RECOVERY
-# ==========================================
-with tab3:
-    st.subheader("Infrastructure Bypass Capability (Effective Strait Access)")
-    
-    bypass_coef = {'OMN': 1.00, 'SAU': 0.35, 'UAE': 0.25, 'QAT': 0.03, 'KWT': 0.03, 'BHR': 0.03}
-    
-    # Calculate effective capacity based on bypass capability
-    countries = list(bypass_coef.keys())
-    effective_capacity = [strait_capacity + ((100 - strait_capacity) * bypass_coef[c]) for c in countries]
-    
-    fig_bypass = go.Bar(x=countries, y=effective_capacity, marker_color=['purple', 'green', 'blue', 'maroon', 'orange', 'red'])
-    
-    layout = go.Layout(height=400, yaxis_title="Effective Export Capacity (%)", 
-                       title="How Pipelines & Coastal Terminals Mitigate Strait Closure")
-    st.plotly_chart(go.Figure(data=fig_bypass, layout=layout), use_container_width=True)
     
     st.info("Recovery Phase: Once the conflict duration ends, the model uses AR(1) coefficients (ρ_GDP = 0.40, ρ_LM = 0.25) to map the asymmetric lag between economic rebound and workforce return.")
